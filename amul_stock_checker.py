@@ -121,8 +121,15 @@ def main():
         print("🎉 PRODUCT IS IN STOCK! Sending Telegram notifications...")
         notify_all(msg)
     else:
-        # Silent exit when not in stock — no Telegram spam
-        print(f"Not in stock yet. Will check again next run.")
+        msg = (
+            f"\u274c *Not available yet*\n\n"
+            f"*Amul High Protein Plain Lassi (Pack of 30)* is still not available "
+            f"for delivery to ATS Pristine, Noida (201310).\n\n"
+            f"_Checked at: {check_time}_\n"
+            f"_Checking again every 10 minutes..._"
+        )
+        print("Not in stock. Sending Telegram notification...")
+        notify_all(msg)
 
 
 if __name__ == "__main__":
