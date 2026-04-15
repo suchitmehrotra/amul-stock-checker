@@ -1,0 +1,32 @@
+name: Amul Lassi Stock Checker
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'   # Runs every 10 minutes, 24/7
+  workflow_dispatch:           # Also allows manual runs from GitHub UI
+
+jobs:
+  check-stock:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Playwright
+        run: |
+          pip install playwright
+          python -m playwright install chromium --with-deps
+
+      - name: Run stock checker
+        run: python amul_stock_checker.py
+        env:
+          SUCHIT_TOKEN: ${{ secrets.SUCHIT_TOKEN }}
+          SUCHIT_CHAT_ID: ${{ secrets.SUCHIT_CHAT_ID }}
+          SUYASH_TOKEN: ${{ secrets.SUYASH_TOKEN }}
+          SUYASH_CHAT_ID: ${{ secrets.SUYASH_CHAT_ID }}
