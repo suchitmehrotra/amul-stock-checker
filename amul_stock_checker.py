@@ -99,8 +99,9 @@ def check_stock():
 
 
 def main():
-    from datetime import datetime
-    check_time = datetime.now().strftime("%d %b %Y, %I:%M %p")
+    from datetime import datetime, timezone, timedelta
+    IST = timezone(timedelta(hours=5, minutes=30))
+    check_time = datetime.now(IST).strftime("%d %b %Y, %I:%M %p IST")
     print(f"[{check_time}] Checking Amul High Protein Lassi stock for pincode {PINCODE}...")
 
     is_available, info = check_stock()
