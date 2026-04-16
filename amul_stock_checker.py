@@ -1,7 +1,7 @@
 """
-Amul High Protein Plain Lassi - Stock Checker
-Checks availability for pincode 201310 (ATS Pristine, Noida)
-and sends a Telegram notification when the product is back in stock.
+Amul High Protein Lassi - Stock Checker
+Checks availability of Plain and Rose Lassi (Pack of 30) for pincode 201310
+(ATS Pristine, Noida) and sends a combined Telegram notification.
 """
 
 import sys
@@ -12,14 +12,23 @@ import urllib.request
 import urllib.parse
 
 # --- CONFIG ---
-# Tokens can be overridden via environment variables (for GitHub Actions secrets)
 RECIPIENTS = [
     (os.environ['SUCHIT_TOKEN'], os.environ['SUCHIT_CHAT_ID'], "Suchit"),
     (os.environ['SUYASH_TOKEN'], os.environ['SUYASH_CHAT_ID'], "Suyash"),
 ]
 PINCODE = "201310"
-PRODUCT_ALIAS = "amul-high-protein-plain-lassi-200-ml-or-pack-of-30"
-PRODUCT_URL = f"https://shop.amul.com/en/product/{PRODUCT_ALIAS}"
+PRODUCTS = {
+    "plain": {
+        "alias": "amul-high-protein-plain-lassi-200-ml-or-pack-of-30",
+        "label": "Amul High Protein Plain Lassi (Pack of 30)",
+        "url": "https://shop.amul.com/en/product/amul-high-protein-plain-lassi-200-ml-or-pack-of-30",
+    },
+    "rose": {
+        "alias": "amul-high-protein-rose-lassi-200-ml-or-pack-of-30",
+        "label": "Amul High Protein Rose Lassi (Pack of 30)",
+        "url": "https://shop.amul.com/en/product/amul-high-protein-rose-lassi-200-ml-or-pack-of-30",
+    },
+}
 
 
 def send_telegram_message(token, chat_id, text):
@@ -48,8 +57,7 @@ def notify_all(msg):
 def check_stock():
     from playwright.sync_api import sync_playwright
 
-    product_found = False
-    product_info = {}
+    results = {key: None for key in PRODUCTS}  # None = not found, dict = product info
 
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
@@ -64,11 +72,16 @@ def check_stock():
                 try:
                     body = response.json()
                     for item in body.get('data', []):
-                        if 'lassi' in item.get('alias', '').lower():
-                            nonlocal product_found, product_info
-                            if item.get('available') and item.get('inventory_quantity', 0) > 0:
-                                product_found = True
-                                product_info = item
+                        alias = item.get('alias', '').lower()
+                        for key, product in PRODUCTS.items():
+                            if product['alias'] in alias or (
+                                'lassi' in alias and (
+                                    ('plain' in alias and key == 'plain') or
+                                    ('rose' in alias and key == 'rose')
+                                )
+                            ):
+                                if item.get('available') and item.get('inventory_quantity', 0) > 0:
+                                    results[key] = item
                 except Exception:
                     pass
 
@@ -95,7 +108,7 @@ def check_stock():
 
         browser.close()
 
-    return product_found, product_info
+    return results
 
 
 def main():
@@ -104,33 +117,35 @@ def main():
     check_time = datetime.now(IST).strftime("%d %b %Y, %I:%M %p IST")
     print(f"[{check_time}] Checking Amul High Protein Lassi stock for pincode {PINCODE}...")
 
-    is_available, info = check_stock()
+    results = check_stock()
 
-    if is_available:
-        name = info.get('name', 'Amul High Protein Plain Lassi')
-        price = info.get('price', 'N/A')
-        inv = info.get('inventory_quantity', 'N/A')
-        msg = (
-            f"\U0001f389 *IN STOCK!*\n\n"
-            f"*{name}* is available for delivery to ATS Pristine, Noida (201310)!\n\n"
-            f"\U0001f4b0 Price: \u20b9{price}\n"
-            f"\U0001f4e6 Units available: {inv}\n\n"
-            f"\U0001f449 [Order now]({PRODUCT_URL})\n\n"
-            f"_Hurry \u2014 stock may be limited!_\n"
-            f"_Checked at: {check_time}_"
-        )
-        print("🎉 PRODUCT IS IN STOCK! Sending Telegram notifications...")
-        notify_all(msg)
+    any_in_stock = any(v is not None for v in results.values())
+
+    # Build combined message
+    lines = [f"🧴 *Amul High Protein Lassi — Stock Update*\n"]
+
+    for key, product in PRODUCTS.items():
+        info = results[key]
+        if info:
+            price = info.get('price', 'N/A')
+            inv = info.get('inventory_quantity', 'N/A')
+            lines.append(
+                f"✅ *{product['label']}*\n"
+                f"💰 Price: ₹{price} | 📦 Units: {inv}\n"
+                f"👉 [Order now]({product['url']})\n"
+            )
+        else:
+            lines.append(f"❌ *{product['label']}*\n_Not available_\n")
+
+    lines.append(f"_Checked at: {check_time}_")
+    msg = "\n".join(lines)
+
+    if any_in_stock:
+        print("🎉 AT LEAST ONE PRODUCT IS IN STOCK! Sending Telegram notifications...")
     else:
-        msg = (
-            f"\u274c *Not available yet*\n\n"
-            f"*Amul High Protein Plain Lassi (Pack of 30)* is still not available "
-            f"for delivery to ATS Pristine, Noida (201310).\n\n"
-            f"_Checked at: {check_time}_\n"
-            f"_Checking again every 10 minutes..._"
-        )
-        print("Not in stock. Sending Telegram notification...")
-        notify_all(msg)
+        print("Neither product is in stock. Sending Telegram notification...")
+
+    notify_all(msg)
 
 
 if __name__ == "__main__":
