@@ -121,8 +121,12 @@ def main():
 
     any_in_stock = any(v is not None for v in results.values())
 
-    # Build combined message
-    lines = [f"🧴 *Amul High Protein Lassi — Stock Update*\n"]
+    # First line = notification preview: show plain/rose status at a glance
+    plain_status = "IN STOCK ✅" if results.get("plain") else "OUT ❌"
+    rose_status = "IN STOCK ✅" if results.get("rose") else "OUT ❌"
+    preview_line = f"Plain: {plain_status} | Rose: {rose_status}"
+
+    lines = [f"{preview_line}\n"]
 
     for key, product in PRODUCTS.items():
         info = results[key]
@@ -131,7 +135,7 @@ def main():
             inv = info.get('inventory_quantity', 'N/A')
             lines.append(
                 f"✅ *{product['label']}*\n"
-                f"💰 Price: ₹{price} | 📦 Units: {inv}\n"
+                f"💰 Price: ₹{price} | Units: {inv}\n"
                 f"👉 [Order now]({product['url']})\n"
             )
         else:
